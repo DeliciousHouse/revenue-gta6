@@ -74,6 +74,7 @@ export function createCrimeSystem(world) {
       x: bestNode.x, y: bestNode.y,
       w: vt.w + 4, h: vt.h + 2,
       angle: 0, speed: 0,
+      hp: 50, hitFlash: 0,
       state: heat > 0 ? 'CHASE' : 'PATROL',
       targetNode: null,
       path: null,
@@ -258,7 +259,7 @@ export function createCrimeSystem(world) {
         // Hit police
         for (const p of police) {
           if (world.rectsOverlap(pr, p)) {
-            p.hp = (p.hp || 50) - proj.damage;
+            p.hp -= proj.damage;
             p.hitFlash = 0.15;
             world.projectiles.splice(i, 1);
             hits.push({ type: 'police', target: p });
@@ -269,14 +270,25 @@ export function createCrimeSystem(world) {
             break;
           }
         }
-        // Hit pedestrians
+        // Hit pedestrians (guards have HP, civilians are removed immediately)
         for (let j = world.pedestrians.length - 1; j >= 0; j--) {
           const ped = world.pedestrians[j];
           if (world.rectsOverlap(pr, ped)) {
-            world.pedestrians.splice(j, 1);
             world.projectiles.splice(i, 1);
-            hits.push({ type: 'pedestrian' });
-            raiseHeat(2);
+            if (ped.isGuard && ped.hp !== undefined) {
+              ped.hp -= proj.damage;
+              ped.hitFlash = 0.15;
+              if (ped.hp <= 0) {
+                world.pedestrians.splice(j, 1);
+                hits.push({ type: 'guardDefeated' });
+              } else {
+                hits.push({ type: 'guardHit' });
+              }
+            } else {
+              world.pedestrians.splice(j, 1);
+              hits.push({ type: 'pedestrian' });
+              raiseHeat(2);
+            }
             break;
           }
         }
@@ -311,8 +323,31 @@ export function createCrimeSystem(world) {
     return hits;
   }
 
+  let guardFireTimer = 0;
+
+  function updateGuards(dt) {
+    guardFireTimer -= dt;
+    const px = world.player.x + world.player.w / 2;
+    const py = world.player.y + world.player.h / 2;
+    for (const ped of world.pedestrians) {
+      if (!ped.isGuard || !ped.hp || ped.hp <= 0) continue;
+      const gx = ped.x + ped.w / 2;
+      const gy = ped.y + ped.h / 2;
+      const d = Math.sqrt((gx - px) ** 2 + (gy - py) ** 2);
+      if (d < 200 && guardFireTimer <= 0 && world.projectiles.length < MAX_PROJECTILES) {
+        const angle = Math.atan2(py - gy, px - gx);
+        world.projectiles.push({
+          x: gx, y: gy, angle, speed: PROJECTILE_SPEED * 0.5,
+          life: PROJECTILE_LIFE * 0.8, owner: 'police', damage: 10,
+        });
+        guardFireTimer = 1.5;
+      }
+    }
+  }
+
   function update(dt) {
     updatePolice(dt);
+    updateGuards(dt);
     const hits = checkProjectileHits();
     if (playerFireTimer > 0) playerFireTimer -= dt;
     return { hits, spotted, searchTimer: spotted ? 0 : Math.max(0, searchTimer) };

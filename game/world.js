@@ -59,6 +59,7 @@ export function createWorld() {
   const projectiles = [];
   const effects = [];
   let exitBlocked = false;
+  let upgraded = false;
 
   // Spawn parked cars
   for (const sp of SPAWN_POINTS.parkedCars) {
@@ -142,10 +143,12 @@ export function createWorld() {
   function updateVehicle(car, accelInput, steerInput, brakeInput, handbrake, dt) {
     const vt = VEHICLE_TYPES[car.type];
     const maxSteer = 2.5;
-    const speedFactor = 1 - Math.min(Math.abs(car.speed) / vt.topSpeed, 0.8) * 0.7;
+    const gripBonus = upgraded ? 0.1 : 0;
+    const accelBonus = upgraded ? 1.15 : 1;
+    const speedFactor = 1 - Math.min(Math.abs(car.speed) / vt.topSpeed, 0.8) * (0.7 - gripBonus);
 
     if (accelInput > 0) {
-      car.speed += vt.accel * dt * accelInput;
+      car.speed += vt.accel * accelBonus * dt * accelInput;
     } else if (accelInput < 0) {
       if (car.speed > 10) {
         car.speed -= vt.brakeForce * dt;
@@ -554,6 +557,8 @@ export function createWorld() {
   return {
     player, vehicles, traffic, pedestrians, projectiles, effects,
     get exitBlocked() { return exitBlocked; },
+    get upgraded() { return upgraded; },
+    set upgraded(v) { upgraded = !!v; },
     adj,
     nearestVehicle, enterVehicle, exitVehicle,
     tryMove, rectsOverlap, dist, damagePlayer, damageVehicle,

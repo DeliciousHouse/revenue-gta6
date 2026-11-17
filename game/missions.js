@@ -273,6 +273,7 @@ export function createMissionSystem(world, crime, save) {
     if (cash < UPGRADE_COST) return { ok: false, reason: `Need $${UPGRADE_COST} (have $${cash})` };
     cash -= UPGRADE_COST;
     upgraded = true;
+    world.upgraded = true;
     save.save(completedMissions, cash, upgraded);
     return { ok: true };
   }
@@ -360,6 +361,7 @@ export function createMissionSystem(world, crime, save) {
   }
 
   // Initialize
+  if (upgraded) world.upgraded = true;
   if (completedMissions >= 3) {
     objective = 'All missions complete. Keep exploring Pelican Reach!';
   } else {

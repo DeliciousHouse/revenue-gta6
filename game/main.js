@@ -325,8 +325,8 @@ function boot() {
     const input = getInput();
     const events = { shotFired: false };
 
-    // Fire weapon
-    if (mouseDown && !world.player.inVehicle) {
+    // Fire weapon (only when overlay is hidden to prevent menu clicks firing)
+    if (mouseDown && !world.player.inVehicle && overlay.classList.contains('hidden')) {
       const worldPos = renderer.screenToWorld(mouseX, mouseY, camX, camY);
       const aimAngle = Math.atan2(
         worldPos.y - (world.player.y + world.player.h / 2),
@@ -340,12 +340,18 @@ function boot() {
       }
     }
 
+    // Consume interact before the step loop (edge-triggered, once per press)
+    let didInteract = false;
+    if (interactPressed) {
+      interactPressed = false;
+      didInteract = true;
+    }
+
     // Fixed-step simulation
     let steps = 0;
     while (accumulator >= STEP && steps < MAX_STEPS) {
-      // Interact (edge-triggered)
-      if (interactPressed) {
-        interactPressed = false;
+      // Handle interaction on first step only
+      if (didInteract && steps === 0) {
         missions.handleInteract(world.player.x, world.player.y);
       }
 
@@ -365,9 +371,9 @@ function boot() {
         audio.playHit();
       }
 
-      // Mission update
+      // Mission update (pass interact flag for mission-specific interactions)
       const prevCompleted = missions.completedMissions;
-      missions.update(STEP, world.player.x, world.player.y, false);
+      missions.update(STEP, world.player.x, world.player.y, didInteract && steps === 0);
       if (missions.completedMissions > prevCompleted) {
         audio.playSuccess();
       }
