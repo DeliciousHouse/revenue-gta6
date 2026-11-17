@@ -133,10 +133,15 @@ export function createCrimeSystem(world) {
       switch (p.state) {
         case 'PATROL': {
           if (!p.path || p.pathIdx >= p.path.length) {
-            const fromNode = nearestNode(p.x + p.w / 2, p.y + p.h / 2);
+            const pcx = p.x + p.w / 2, pcy = p.y + p.h / 2;
+            const fromNode = nearestNode(pcx, pcy);
             const toIdx = Math.floor(Math.random() * ROAD_NODES.length);
             p.path = fromNode ? findPath(fromNode.id, toIdx, adj) : null;
             p.pathIdx = 0;
+            while (p.path && p.pathIdx < p.path.length - 1) {
+              const wp = ROAD_NODES[p.path[p.pathIdx]];
+              if (distXY(pcx, pcy, wp.x, wp.y) < 60) { p.pathIdx++; } else { break; }
+            }
           }
           if (p.path && p.pathIdx < p.path.length) {
             const wp = ROAD_NODES[p.path[p.pathIdx]];
@@ -224,15 +229,25 @@ export function createCrimeSystem(world) {
   }
 
   function updatePathTo(p, tx, ty) {
-    p.pathTimer = (p.pathTimer || 0) - (1 / 60);
-    if (p.path && p.pathIdx < p.path.length && p.pathTimer > 0) return;
-    const fromNode = nearestNode(p.x + p.w / 2, p.y + p.h / 2);
+    const hasValid = p.path && p.pathIdx < p.path.length;
+    if (hasValid) {
+      const moved = distXY(p.pathTX || 0, p.pathTY || 0, tx, ty);
+      if (moved < 200) return;
+    }
+    const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+    const fromNode = nearestNode(cx, cy);
     const toNode = nearestNode(tx, ty);
     if (fromNode && toNode && fromNode.id !== toNode.id) {
       p.path = findPath(fromNode.id, toNode.id, adj);
       p.pathIdx = 0;
+      p.pathTX = tx; p.pathTY = ty;
+      while (p.path && p.pathIdx < p.path.length - 1) {
+        const wp = ROAD_NODES[p.path[p.pathIdx]];
+        if (distXY(cx, cy, wp.x, wp.y) < 60) { p.pathIdx++; } else { break; }
+      }
+    } else {
+      p.path = null;
     }
-    p.pathTimer = 1.0;
   }
 
   function driveToward(p, tx, ty, maxSpeed, dt) {
