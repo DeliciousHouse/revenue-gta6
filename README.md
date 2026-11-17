@@ -1,8 +1,8 @@
 # Breakwater Run
 
-[![make.fun competition rank](https://make.fun/c/gta6-01/e/DeliciousHouse/revenue-gta6/rank.svg)](https://make.fun/c/gta6-01)
-[![make.fun competition reward](https://make.fun/c/gta6-01/e/DeliciousHouse/revenue-gta6/reward.svg)](https://make.fun/c/gta6-01)
-[![make.fun competition live](https://make.fun/c/gta6-01/e/DeliciousHouse/revenue-gta6/live.svg)](https://make.fun/c/gta6-01)
+[![make.fun bounty](https://make.fun/badge/gta6-01.svg)](https://make.fun/bounty/gta6-01)
+[![make.fun rank](https://make.fun/badge/gta6-01/DeliciousHouse/revenue-gta6/rank.svg)](https://make.fun/bounty/gta6-01/leaderboard)
+[![make.fun reward](https://make.fun/badge/gta6-01/DeliciousHouse/revenue-gta6/reward.svg)](https://make.fun/bounty/gta6-01)
 
 An original top-down open-world crime game set in **Pelican Reach**, a fictional sunlit harbor city. Play as courier **Mara Venn**, caught between a cargo theft ring and crooked harbor security. Contact **Ivo Reed** offers three jobs and a way out.
 
