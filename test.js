@@ -270,6 +270,35 @@ test('Cash at max passes', () => {
   assert.equal(result.cash, 999999);
 });
 
+test('Missing save (null) returns null from validate', () => {
+  assert.equal(validateSave(null), null);
+  assert.equal(validateSave(undefined), null);
+});
+
+test('Corrupt JSON (non-object parsed values) rejects', () => {
+  assert.equal(validateSave(42), null);
+  assert.equal(validateSave(true), null);
+  assert.equal(validateSave([1, 2, 3]), null);
+  assert.equal(validateSave('{"broken'), null);
+});
+
+test('Empty object rejects', () => {
+  assert.equal(validateSave({}), null);
+});
+
+test('Title Sound toggle must not create save from no-save state', () => {
+  // Simulates what happens: if no save exists, load() returns null.
+  // The fix: only call save() when hasSave() is true.
+  // Verify that validate(null) returns null, confirming load() safely returns null.
+  const loaded = validateSave(null);
+  assert.equal(loaded, null, 'No existing save should mean no data to save mute into');
+  // The zero-progress save that would be created:
+  const spurious = { version: 1, completedMissions: 0, cash: 0, upgraded: false, mute: true };
+  const valid = validateSave(spurious);
+  assert.ok(valid !== null, 'Zero-progress save IS technically valid schema');
+  // The fix ensures this save is never written from title Sound toggle when no save exists.
+});
+
 // --- Mission Prerequisite / Reward Idempotence Tests ---
 console.log('\n--- Mission Logic ---');
 

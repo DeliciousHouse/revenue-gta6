@@ -23,6 +23,7 @@ let mouseClicked = false;
 let interactPressed = false;
 let pausePressed = false;
 let mutePressed = false;
+let currentScreen = 'title';
 
 function setupInput(canvas, renderer) {
   window.addEventListener('keydown', (e) => {
@@ -31,7 +32,11 @@ function setupInput(canvas, renderer) {
     if (e.code === 'KeyE') interactPressed = true;
     if (e.code === 'Escape' || e.code === 'KeyP') pausePressed = true;
     if (e.code === 'KeyM') mutePressed = true;
-    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','KeyW','KeyA','KeyS','KeyD','KeyE','KeyP','KeyM','Escape'].includes(e.code)) {
+    // Only block Space during gameplay (let it activate focused buttons in menus)
+    if (e.code === 'Space' && currentScreen === 'play') {
+      e.preventDefault();
+    }
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyE','KeyP','KeyM','Escape'].includes(e.code)) {
       e.preventDefault();
     }
   });
@@ -45,6 +50,11 @@ function setupInput(canvas, renderer) {
     mouseDown = false;
     mouseClicked = false;
     interactPressed = false;
+    pausePressed = false;
+    mutePressed = false;
+    if (currentScreen === 'play' && typeof window.__bwr_pauseOnBlur === 'function') {
+      window.__bwr_pauseOnBlur();
+    }
   });
 
   canvas.addEventListener('mousemove', (e) => {
@@ -119,6 +129,14 @@ function boot() {
 
   setupInput(canvas, renderer);
 
+  // Expose pause callback for blur handler (defined after showPause exists)
+  window.__bwr_pauseOnBlur = null;
+
+  function setScreen(s) {
+    screen = s;
+    currentScreen = s;
+  }
+
   function announce(msg) {
     statusEl.textContent = msg;
   }
@@ -180,7 +198,7 @@ function boot() {
   }
 
   function showTitle() {
-    screen = SCREEN_TITLE;
+    setScreen(SCREEN_TITLE);
     const hasSave = save.hasSave();
     const notice = save.notice;
 
@@ -194,7 +212,7 @@ function boot() {
           }
           initGame(false);
           hideMenu();
-          screen = SCREEN_PLAY;
+          setScreen(SCREEN_PLAY);
           accumulator = 0;
           lastTime = performance.now();
           announce('Playing. Go to the safehouse to start your first job.');
@@ -207,7 +225,7 @@ function boot() {
         action: () => {
           initGame(true);
           hideMenu();
-          screen = SCREEN_PLAY;
+          setScreen(SCREEN_PLAY);
           accumulator = 0;
           lastTime = performance.now();
           announce('Continuing. ' + missions.objective);
@@ -221,7 +239,10 @@ function boot() {
         label: audio.muted ? 'Sound: OFF' : 'Sound: ON',
         action: () => {
           audio.setMute(!audio.muted);
-          save.save(save.completedMissions, save.cash, save.upgraded, audio.muted);
+          if (save.hasSave()) {
+            const existing = save.load();
+            if (existing) save.save(existing.completedMissions, existing.cash, existing.upgraded, audio.muted);
+          }
           showTitle();
         },
       },
@@ -237,10 +258,10 @@ function boot() {
   }
 
   function showPause() {
-    screen = SCREEN_PAUSED;
+    setScreen(SCREEN_PAUSED);
     audio.suspend();
     showMenu('PAUSED', '', [
-      { label: 'Resume', primary: true, action: () => { hideMenu(); screen = SCREEN_PLAY; audio.resume(); lastTime = performance.now(); accumulator = 0; announce('Playing.'); } },
+      { label: 'Resume', primary: true, action: () => { hideMenu(); setScreen(SCREEN_PLAY); audio.resume(); lastTime = performance.now(); accumulator = 0; announce('Playing.'); } },
       { label: 'Help', action: () => showHelp(false) },
       { label: audio.muted ? 'Sound: OFF' : 'Sound: ON', action: () => { audio.setMute(!audio.muted); if (missions) save.save(missions.completedMissions, missions.cash, missions.upgraded, audio.muted); showPause(); } },
       { label: 'Return to Title', action: () => { hideMenu(); showTitle(); } },
@@ -264,7 +285,7 @@ function boot() {
   }
 
   function showDeath(reason) {
-    screen = SCREEN_DEAD;
+    setScreen(SCREEN_DEAD);
     audio.suspend();
     showMenu(reason === 'wrecked' ? 'WRECKED' : 'BUSTED', 'You went down in Pelican Reach.', [
       {
@@ -274,7 +295,7 @@ function boot() {
           world.reset();
           missions.resetMissionState();
           hideMenu();
-          screen = SCREEN_PLAY;
+          setScreen(SCREEN_PLAY);
           audio.resume();
           accumulator = 0;
           lastTime = performance.now();
@@ -285,6 +306,11 @@ function boot() {
     ], '');
     announce(reason === 'wrecked' ? 'Vehicle destroyed.' : 'You were busted.');
   }
+
+  // Wire blur auto-pause now that showPause is defined
+  window.__bwr_pauseOnBlur = () => {
+    if (screen === SCREEN_PLAY) showPause();
+  };
 
   // --- Visibility ---
   document.addEventListener('visibilitychange', () => {

@@ -9,10 +9,11 @@ import { VEHICLE_TYPES } from './world.js';
 
 const VIEW_W = 1280;
 const VIEW_H = 720;
-const MINIMAP_SIZE = 160;
+const MINIMAP_SIZE = 200;
 const MINIMAP_MARGIN = 12;
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 const HUD_BG = 'rgba(18, 54, 59, 0.88)';
+const HUD_BG_SOLID = '#12363B';
 const HUD_TEXT = '#FFF4D6';
 const OBJECTIVE_COLOR = '#F3C84B';
 const DANGER_COLOR = '#AE303A';
@@ -80,13 +81,13 @@ export function createRenderer(canvas) {
     }
     c.setLineDash([]);
 
-    // Buildings with shadows
+    // Buildings with district-distinct silhouettes
     for (const b of BUILDINGS) {
       // Shadow
       c.fillStyle = 'rgba(18, 54, 59, 0.3)';
       c.fillRect(b.x + 4, b.y + 4, b.w, b.h);
 
-      // Building body
+      // Building body color by type
       if (b.type === 'cargo') {
         c.fillStyle = COLORS.cargo;
       } else if (b.type === 'awning') {
@@ -100,16 +101,54 @@ export function createRenderer(canvas) {
       }
       c.fillRect(b.x, b.y, b.w, b.h);
 
-      // Roof highlight
-      c.fillStyle = 'rgba(255,255,255,0.1)';
-      c.fillRect(b.x + 2, b.y + 2, b.w - 4, 6);
-
-      // Awning stripes
-      if (b.type === 'awning') {
+      // District-specific roof details
+      if (b.type === 'cargo') {
+        // Foundry Ward: horizontal corrugated ribs
+        c.fillStyle = 'rgba(0,0,0,0.12)';
+        for (let ry = b.y + 6; ry < b.y + b.h - 2; ry += 8) {
+          c.fillRect(b.x + 2, ry, b.w - 4, 2);
+        }
+        c.fillStyle = 'rgba(255,180,80,0.15)';
+        c.fillRect(b.x + 2, b.y + 2, b.w - 4, 5);
+      } else if (b.type === 'awning') {
+        // Canal Market: striped awning canopy
         c.fillStyle = COLORS.awningStripe;
         for (let sx = b.x; sx < b.x + b.w; sx += 16) {
           c.fillRect(sx, b.y, 8, b.h);
         }
+        // Small overhang line at base
+        c.fillStyle = 'rgba(0,0,0,0.15)';
+        c.fillRect(b.x, b.y + b.h - 3, b.w, 3);
+      } else if (b.type === 'market') {
+        // Canal Market stall: cross-hatch pattern
+        c.strokeStyle = 'rgba(0,0,0,0.1)';
+        c.lineWidth = 1;
+        for (let dx = 0; dx < b.w + b.h; dx += 10) {
+          c.beginPath();
+          c.moveTo(b.x + dx, b.y);
+          c.lineTo(b.x + dx - b.h, b.y + b.h);
+          c.stroke();
+        }
+        c.fillStyle = 'rgba(255,255,255,0.12)';
+        c.fillRect(b.x + 2, b.y + 2, b.w - 4, 5);
+      } else if (b.type === 'safehouse') {
+        // Safehouse: glowing blue border + inner highlight
+        c.fillStyle = 'rgba(100,200,220,0.2)';
+        c.fillRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
+        c.strokeStyle = '#6AC8D8';
+        c.lineWidth = 1.5;
+        c.strokeRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2);
+      } else {
+        // Default (Sunward Quay residential): peaked roof ridge line
+        c.fillStyle = 'rgba(255,255,255,0.12)';
+        c.fillRect(b.x + 2, b.y + 2, b.w - 4, 5);
+        c.strokeStyle = 'rgba(0,0,0,0.15)';
+        c.lineWidth = 1;
+        c.beginPath();
+        c.moveTo(b.x + 4, b.y + b.h / 2);
+        c.lineTo(b.x + b.w / 2, b.y + 3);
+        c.lineTo(b.x + b.w - 4, b.y + b.h / 2);
+        c.stroke();
       }
     }
 
@@ -362,56 +401,74 @@ export function createRenderer(canvas) {
     const truncObj = obj.length > 48 ? obj.slice(0, 48) + '...' : obj;
     ctx.fillText(truncObj, 16, 38);
 
-    // Top-right: health, vehicle health, cash, heat
-    const rightW = 260;
-    ctx.fillStyle = HUD_BG;
-    ctx.fillRect(VIEW_W - rightW - 8, 8, rightW, 80);
+    // Top-right: health, vehicle health, cash, heat — fully opaque backing
+    const rightW = 270;
+    const rightX = VIEW_W - rightW - 8;
+    ctx.fillStyle = HUD_BG_SOLID;
+    ctx.fillRect(rightX, 8, rightW, 84);
+    ctx.strokeStyle = 'rgba(255,244,214,0.15)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(rightX, 8, rightW, 84);
+
+    const colL = rightX + 10;
 
     // Health bar
-    ctx.font = `14px ${FONT}`;
+    ctx.font = `bold 14px ${FONT}`;
     ctx.fillStyle = HUD_TEXT;
-    ctx.fillText('HP', VIEW_W - rightW, 18);
-    ctx.fillStyle = '#333';
-    ctx.fillRect(VIEW_W - rightW + 24, 16, 100, 14);
+    ctx.textAlign = 'left';
+    ctx.fillText('HP', colL, 20);
+    ctx.fillStyle = '#1A1A1A';
+    ctx.fillRect(colL + 28, 16, 100, 14);
     const hpFrac = player.hp / player.maxHp;
     ctx.fillStyle = hpFrac > 0.5 ? '#5BC080' : hpFrac > 0.25 ? OBJECTIVE_COLOR : DANGER_COLOR;
-    ctx.fillRect(VIEW_W - rightW + 24, 16, 100 * hpFrac, 14);
+    ctx.fillRect(colL + 28, 16, 100 * hpFrac, 14);
 
     // Vehicle health (if in vehicle)
     if (player.inVehicle) {
       ctx.fillStyle = HUD_TEXT;
-      ctx.fillText('CAR', VIEW_W - rightW, 36);
-      ctx.fillStyle = '#333';
-      ctx.fillRect(VIEW_W - rightW + 30, 34, 94, 14);
+      ctx.fillText('CAR', colL, 38);
+      ctx.fillStyle = '#1A1A1A';
+      ctx.fillRect(colL + 34, 34, 94, 14);
       const vhpFrac = player.inVehicle.hp / player.inVehicle.maxHp;
       ctx.fillStyle = vhpFrac > 0.5 ? '#5BC080' : vhpFrac > 0.25 ? OBJECTIVE_COLOR : DANGER_COLOR;
-      ctx.fillRect(VIEW_W - rightW + 30, 34, 94 * vhpFrac, 14);
+      ctx.fillRect(colL + 34, 34, 94 * vhpFrac, 14);
     }
 
     // Cash
     ctx.font = `bold 16px ${FONT}`;
     ctx.fillStyle = OBJECTIVE_COLOR;
-    ctx.fillText(`$${missions.cash}`, VIEW_W - rightW, 60);
+    ctx.fillText(`$${missions.cash}`, colL, 62);
 
-    // Heat stars
+    // Heat: number + stars with high-contrast outlines
     ctx.fillStyle = HUD_TEXT;
-    ctx.fillText('HEAT', VIEW_W - rightW + 90, 60);
+    ctx.font = `bold 14px ${FONT}`;
+    ctx.fillText('HEAT', colL + 90, 62);
+    ctx.font = `bold 18px ${FONT}`;
+    ctx.fillStyle = crime.heat > 0 ? DANGER_COLOR : '#556';
+    ctx.fillText(`${crime.heat}`, colL + 136, 62);
+
     for (let i = 0; i < 3; i++) {
-      ctx.fillStyle = i < crime.heat ? DANGER_COLOR : '#333';
-      ctx.beginPath();
-      drawStar(ctx, VIEW_W - rightW + 150 + i * 22, 66, 8, 5);
+      const sx = colL + 158 + i * 24;
+      const sy = 68;
+      // Dark outline for contrast
+      ctx.fillStyle = '#0A1A1D';
+      drawStar(ctx, sx, sy, 10, 5);
+      ctx.fill();
+      // Colored fill
+      ctx.fillStyle = i < crime.heat ? '#E03040' : '#3A3A3A';
+      drawStar(ctx, sx, sy, 8, 5);
       ctx.fill();
     }
 
     // Wanted status
     if (crime.heat > 0) {
-      ctx.font = `bold 16px ${FONT}`;
+      ctx.font = `bold 14px ${FONT}`;
       if (crime.spotted) {
-        ctx.fillStyle = DANGER_COLOR;
-        ctx.fillText('SPOTTED', VIEW_W - 80, 78);
+        ctx.fillStyle = '#E03040';
+        ctx.fillText('SPOTTED', rightX + rightW - 70, 80);
       } else {
         ctx.fillStyle = OBJECTIVE_COLOR;
-        ctx.fillText(`Searching: ${Math.ceil(crime.searchTimer)}s`, VIEW_W - 130, 78);
+        ctx.fillText(`Search: ${Math.ceil(crime.searchTimer)}s`, rightX + rightW - 90, 80);
       }
     }
   }
@@ -430,12 +487,17 @@ export function createRenderer(canvas) {
   function drawMinimap(state) {
     const { player, crime, missions, camX, camY, police } = state;
     const mx = MINIMAP_MARGIN;
-    const my = VIEW_H - MINIMAP_SIZE - MINIMAP_MARGIN;
     const sc = MINIMAP_SIZE / WORLD_W;
     const mh = WORLD_H * sc;
+    const legendH = 36;
+    const my = VIEW_H - mh - MINIMAP_MARGIN - legendH;
 
-    ctx.fillStyle = HUD_BG;
-    ctx.fillRect(mx - 2, my - 2, MINIMAP_SIZE + 4, mh + 4);
+    // Opaque background
+    ctx.fillStyle = HUD_BG_SOLID;
+    ctx.fillRect(mx - 2, my - 2, MINIMAP_SIZE + 4, mh + legendH + 4);
+    ctx.strokeStyle = 'rgba(255,244,214,0.15)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(mx - 2, my - 2, MINIMAP_SIZE + 4, mh + legendH + 4);
 
     // Mini water
     ctx.fillStyle = COLORS.water;
@@ -449,39 +511,95 @@ export function createRenderer(canvas) {
       ctx.fillRect(mx + r.x * sc, my + r.y * sc, Math.max(1, r.w * sc), Math.max(1, r.h * sc));
     }
 
-    // Mini buildings
-    ctx.fillStyle = 'rgba(212, 122, 91, 0.6)';
+    // Mini buildings with type coloring
     for (const b of BUILDINGS) {
-      ctx.fillRect(mx + b.x * sc, my + b.y * sc, b.w * sc, b.h * sc);
+      if (b.type === 'cargo') ctx.fillStyle = 'rgba(224,160,91,0.7)';
+      else if (b.type === 'awning' || b.type === 'market') ctx.fillStyle = 'rgba(196,154,108,0.7)';
+      else if (b.type === 'safehouse') ctx.fillStyle = 'rgba(74,144,160,0.9)';
+      else ctx.fillStyle = 'rgba(212,122,91,0.6)';
+      ctx.fillRect(mx + b.x * sc, my + b.y * sc, Math.max(1, b.w * sc), Math.max(1, b.h * sc));
     }
 
     // Player dot
     ctx.fillStyle = '#5AB4C8';
     ctx.beginPath();
-    ctx.arc(mx + player.x * sc, my + player.y * sc, 3, 0, Math.PI * 2);
+    ctx.arc(mx + player.x * sc, my + player.y * sc, 4, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = '#FFF';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
     // Objective marker
     const marker = missions.getObjectiveMarker();
     if (marker) {
       ctx.fillStyle = OBJECTIVE_COLOR;
       ctx.beginPath();
-      ctx.arc(mx + marker.x * sc, my + marker.y * sc, 3, 0, Math.PI * 2);
+      ctx.arc(mx + marker.x * sc, my + marker.y * sc, 4, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = '#FFF';
+      ctx.lineWidth = 1;
+      ctx.stroke();
     }
 
     // Police dots
     ctx.fillStyle = COLORS.policeLight1;
     for (const p of police) {
       ctx.beginPath();
-      ctx.arc(mx + (p.x + p.w / 2) * sc, my + (p.y + p.h / 2) * sc, 2, 0, Math.PI * 2);
+      ctx.arc(mx + (p.x + p.w / 2) * sc, my + (p.y + p.h / 2) * sc, 3, 0, Math.PI * 2);
       ctx.fill();
     }
 
     // Camera viewport outline
-    ctx.strokeStyle = 'rgba(255,244,214,0.3)';
+    ctx.strokeStyle = 'rgba(255,244,214,0.35)';
     ctx.lineWidth = 0.5;
     ctx.strokeRect(mx + (camX - VIEW_W / 2) * sc, my + (camY - VIEW_H / 2) * sc, VIEW_W * sc, VIEW_H * sc);
+
+    // Legend below map
+    const ly = my + mh + 6;
+    ctx.font = `10px ${FONT}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    // Player legend
+    ctx.fillStyle = '#5AB4C8';
+    ctx.beginPath();
+    ctx.arc(mx + 6, ly + 5, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = HUD_TEXT;
+    ctx.fillText('You', mx + 12, ly);
+
+    // Objective legend
+    ctx.fillStyle = OBJECTIVE_COLOR;
+    ctx.beginPath();
+    ctx.arc(mx + 46, ly + 5, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = HUD_TEXT;
+    ctx.fillText('Goal', mx + 52, ly);
+
+    // Police legend
+    ctx.fillStyle = COLORS.policeLight1;
+    ctx.beginPath();
+    ctx.arc(mx + 90, ly + 5, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = HUD_TEXT;
+    ctx.fillText('Police', mx + 96, ly);
+
+    // District labels (second row)
+    const ly2 = ly + 14;
+    ctx.fillStyle = 'rgba(212,122,91,0.8)';
+    ctx.fillRect(mx + 2, ly2 + 2, 6, 6);
+    ctx.fillStyle = HUD_TEXT;
+    ctx.fillText('Quay', mx + 12, ly2);
+
+    ctx.fillStyle = 'rgba(224,160,91,0.8)';
+    ctx.fillRect(mx + 48, ly2 + 2, 6, 6);
+    ctx.fillStyle = HUD_TEXT;
+    ctx.fillText('Foundry', mx + 58, ly2);
+
+    ctx.fillStyle = 'rgba(196,154,108,0.8)';
+    ctx.fillRect(mx + 110, ly2 + 2, 6, 6);
+    ctx.fillStyle = HUD_TEXT;
+    ctx.fillText('Canal', mx + 120, ly2);
   }
 
   function drawRadioMessage(msg) {
