@@ -387,9 +387,24 @@ export function createRenderer(canvas) {
     const { player, crime, missions, district } = state;
     ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
 
-    // Top-left: district + objective
+    // Top-left: district + objective (word-wrapped)
+    ctx.font = `15px ${FONT}`;
+    const objText = missions.objective;
+    const objMaxW = 396;
+    const objLines = [];
+    let objCur = '';
+    for (const w of objText.split(' ')) {
+      const test = objCur ? objCur + ' ' + w : w;
+      if (ctx.measureText(test).width > objMaxW && objCur) {
+        objLines.push(objCur);
+        objCur = w;
+      } else {
+        objCur = test;
+      }
+    }
+    if (objCur) objLines.push(objCur);
     ctx.fillStyle = HUD_BG;
-    ctx.fillRect(8, 8, 420, 56);
+    ctx.fillRect(8, 8, 420, 32 + objLines.length * 18);
     ctx.font = `bold 18px ${FONT}`;
     ctx.fillStyle = HUD_TEXT;
     ctx.textAlign = 'left';
@@ -397,9 +412,9 @@ export function createRenderer(canvas) {
     ctx.fillText(district, 16, 14);
     ctx.font = `15px ${FONT}`;
     ctx.fillStyle = OBJECTIVE_COLOR;
-    const obj = missions.objective;
-    const truncObj = obj.length > 48 ? obj.slice(0, 48) + '...' : obj;
-    ctx.fillText(truncObj, 16, 38);
+    for (let i = 0; i < objLines.length; i++) {
+      ctx.fillText(objLines[i], 16, 38 + i * 18);
+    }
 
     // Top-right: health, vehicle health, cash, heat — fully opaque backing
     const rightW = 270;

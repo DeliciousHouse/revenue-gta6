@@ -101,14 +101,15 @@ mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
 ## Test Results
 
-51 tests covering:
+59 tests covering:
 - City collision (bounds, buildings, roads, spawn safety)
 - District identification
 - Road graph (adjacency, pathfinding, multi-route verification)
-- Save validation (valid data, type checks, range checks, malformed input)
-- Mission prerequisites and reward idempotence
-- Death/reset state preservation
-- Exit safety and line-of-sight
+- Save validation (actual module: valid data, type checks, range checks, malformed input, corrupt data)
+- World (actual module: spawn, mission car lifecycle, driver ownership, traffic behavior)
+- Crime (actual module: heat persistence, line-of-sight, projectile hit, pursuit reset)
+- Missions (actual module: prerequisites, VEHICLE_TYPES import, Hot Cargo delivery, vehicle leak, rewards)
+- 13 regression tests for independently verified production defects
 
 ## Original Assets
 
@@ -121,18 +122,28 @@ No commercial game names, logos, characters, maps or assets are used.
 - **Art**: Canvas-drawn with original color palette
 - **Audio**: Web Audio API synthesized tones (no sampled audio)
 
+## Browser-Verified
+
+Real browser keyboard play at 1280x720 confirmed:
+- First mission (Borrowed Wheels): accept, steal Finch, deliver, $500 reward
+- Driving physics, enter/exit vehicle
+- On-foot firing, HEAT 1 with Search timer decay
+- HUD readability (HP, cash, heat stars, objective, minimap with legend)
+- Three genuine screenshots captured from browser session
+
 ## Unverified Checks
 
-The following require browser testing and are not yet verified:
-- Screenshots (pending genuine browser captures)
+The following require additional browser testing and are not yet verified:
+- Full three-mission playthrough (missions 2 and 3)
+- Audio listening (Web Audio synthesis)
 - Pointer-to-world coordinate mapping at different viewport sizes
-- Responsive layout at 1280x720, 1440x900, 1024x768
+- Responsive layout at 1440x900, 1024x768
 - Mobile advisory at 390x844
 - Web Audio user-gesture initialization
 - Reduced-motion preference behavior
 - 60-second busy pursuit performance measurement
-- Full playthrough of all three missions in browser
 - Canvas fallback when unavailable
+- Unit module tests are not browser proof (run in Node.js)
 
 ## License
 
