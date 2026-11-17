@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Breakwater Run</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game" aria-label="Breakwater Run: open-world crime game in Pelican Reach"></canvas>
+<div id="hud" aria-hidden="true"></div>
+<div id="overlay" class="overlay hidden">
+  <div id="menu" class="menu" role="dialog" aria-label="Game Menu">
+    <div id="menu-title" class="menu-title"></div>
+    <div id="menu-subtitle" class="menu-sub"></div>
+    <div id="menu-buttons"></div>
+    <div id="menu-controls" class="menu-controls"></div>
+  </div>
+</div>
+<div id="mobile-advisory" class="hidden">
+  <div class="advisory-box">
+    <h2>Breakwater Run</h2>
+    <p>Best played with a desktop keyboard &amp; mouse.</p>
+    <p>WASD to move, mouse to aim, E to interact.</p>
+    <button id="mobile-dismiss" class="btn btn-primary">View Anyway</button>
+  </div>
+</div>
+<p id="status" role="status" aria-live="polite"></p>
+<p id="controls-text" class="sr-only">Controls: WASD move, E interact/enter car, mouse aim, left click fire, Space handbrake, Esc pause, M mute</p>
+<script type="module" src="main.js"></script>
+</body>
+</html>
