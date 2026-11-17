@@ -35,6 +35,7 @@ export function createCrimeSystem(world) {
     if (heatCooldownTimer > 0) return;
     heat = Math.min(MAX_HEAT, heat + amount);
     heatCooldownTimer = HEAT_COOLDOWN;
+    searchTimer = SEARCH_TIME;
     updatePoliceCount();
   }
 
@@ -131,18 +132,33 @@ export function createCrimeSystem(world) {
 
       switch (p.state) {
         case 'PATROL': {
-          // Random patrol between road nodes
-          if (!p.targetNode || dist(p, ROAD_NODES[p.targetNode]) < 40) {
-            p.targetNode = Math.floor(Math.random() * ROAD_NODES.length);
+          if (!p.path || p.pathIdx >= p.path.length) {
+            const fromNode = nearestNode(p.x + p.w / 2, p.y + p.h / 2);
+            const toIdx = Math.floor(Math.random() * ROAD_NODES.length);
+            p.path = fromNode ? findPath(fromNode.id, toIdx, adj) : null;
+            p.pathIdx = 0;
           }
-          const target = ROAD_NODES[p.targetNode];
-          driveToward(p, target.x, target.y, 80, dt);
+          if (p.path && p.pathIdx < p.path.length) {
+            const wp = ROAD_NODES[p.path[p.pathIdx]];
+            driveToward(p, wp.x, wp.y, 80, dt);
+            if (distXY(p.x + p.w / 2, p.y + p.h / 2, wp.x, wp.y) < 40) p.pathIdx++;
+          }
           break;
         }
         case 'CHASE': {
-          // Drive toward player
-          driveToward(p, px, py, 160, dt);
-          // Fire at player when close
+          // If close and have LOS, drive directly; otherwise use road graph
+          if (canSee && dist(p, world.player) < 200) {
+            driveToward(p, px, py, 160, dt);
+          } else {
+            updatePathTo(p, px, py);
+            if (p.path && p.pathIdx < p.path.length) {
+              const wp = ROAD_NODES[p.path[p.pathIdx]];
+              driveToward(p, wp.x, wp.y, 160, dt);
+              if (distXY(p.x + p.w / 2, p.y + p.h / 2, wp.x, wp.y) < 40) p.pathIdx++;
+            } else {
+              driveToward(p, px, py, 160, dt);
+            }
+          }
           if (canSee && dist(p, world.player) < POLICE_FIRE_RANGE && p.fireTimer <= 0) {
             firePoliceProjectile(p, px, py);
             p.fireTimer = POLICE_FIRE_COOLDOWN;
@@ -150,7 +166,14 @@ export function createCrimeSystem(world) {
           break;
         }
         case 'SEARCH': {
-          driveToward(p, p.lastSeenX, p.lastSeenY, 60, dt);
+          updatePathTo(p, p.lastSeenX, p.lastSeenY);
+          if (p.path && p.pathIdx < p.path.length) {
+            const wp = ROAD_NODES[p.path[p.pathIdx]];
+            driveToward(p, wp.x, wp.y, 60, dt);
+            if (distXY(p.x + p.w / 2, p.y + p.h / 2, wp.x, wp.y) < 40) p.pathIdx++;
+          } else {
+            driveToward(p, p.lastSeenX, p.lastSeenY, 60, dt);
+          }
           break;
         }
       }
@@ -194,6 +217,22 @@ export function createCrimeSystem(world) {
     const bx = b.x || 0;
     const by = b.y || 0;
     return Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2);
+  }
+
+  function distXY(ax, ay, bx, by) {
+    return Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2);
+  }
+
+  function updatePathTo(p, tx, ty) {
+    p.pathTimer = (p.pathTimer || 0) - (1 / 60);
+    if (p.path && p.pathIdx < p.path.length && p.pathTimer > 0) return;
+    const fromNode = nearestNode(p.x + p.w / 2, p.y + p.h / 2);
+    const toNode = nearestNode(tx, ty);
+    if (fromNode && toNode && fromNode.id !== toNode.id) {
+      p.path = findPath(fromNode.id, toNode.id, adj);
+      p.pathIdx = 0;
+    }
+    p.pathTimer = 1.0;
   }
 
   function driveToward(p, tx, ty, maxSpeed, dt) {
@@ -251,7 +290,7 @@ export function createCrimeSystem(world) {
 
   function checkProjectileHits() {
     const hits = [];
-    for (let i = world.projectiles.length - 1; i >= 0; i--) {
+    outer: for (let i = world.projectiles.length - 1; i >= 0; i--) {
       const proj = world.projectiles[i];
       const pr = { x: proj.x - 3, y: proj.y - 3, w: 6, h: 6 };
 
@@ -267,7 +306,7 @@ export function createCrimeSystem(world) {
               const idx = police.indexOf(p);
               if (idx >= 0) police.splice(idx, 1);
             }
-            break;
+            continue outer;
           }
         }
         // Hit pedestrians (guards have HP, civilians are removed immediately)
@@ -289,7 +328,7 @@ export function createCrimeSystem(world) {
               hits.push({ type: 'pedestrian' });
               raiseHeat(2);
             }
-            break;
+            continue outer;
           }
         }
         // Hit traffic
@@ -299,7 +338,7 @@ export function createCrimeSystem(world) {
             t.hitFlash = 0.15;
             world.projectiles.splice(i, 1);
             hits.push({ type: 'traffic', target: t });
-            break;
+            continue outer;
           }
         }
       } else {
@@ -310,12 +349,14 @@ export function createCrimeSystem(world) {
             world.damagePlayer(proj.damage * 0.5);
             world.projectiles.splice(i, 1);
             hits.push({ type: 'playerHit' });
+            continue outer;
           }
         } else {
           if (world.rectsOverlap(pr, world.player)) {
             world.damagePlayer(proj.damage);
             world.projectiles.splice(i, 1);
             hits.push({ type: 'playerHit' });
+            continue outer;
           }
         }
       }
@@ -364,7 +405,7 @@ export function createCrimeSystem(world) {
 
   return {
     get heat() { return heat; },
-    set heat(v) { heat = Math.max(0, Math.min(MAX_HEAT, v)); updatePoliceCount(); },
+    set heat(v) { heat = Math.max(0, Math.min(MAX_HEAT, v)); if (heat > 0) searchTimer = SEARCH_TIME; updatePoliceCount(); },
     get spotted() { return spotted; },
     get searchTimer() { return Math.max(0, searchTimer); },
     police,

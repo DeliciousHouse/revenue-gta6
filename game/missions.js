@@ -2,6 +2,7 @@
 // Stage transitions guarded by explicit checks. Rewards fire once.
 
 import { LANDMARKS, SPAWN_POINTS } from './city.js';
+import { VEHICLE_TYPES } from './world.js';
 
 export const MISSION_NAMES = [
   'Borrowed Wheels',
@@ -219,11 +220,13 @@ export function createMissionSystem(world, crime, save) {
         objective = 'Lose the tail first!';
         return;
       }
-      if (world.player.inVehicle && isNearQuayGarage(px, py)) {
+      if (world.player.inVehicle && world.player.inVehicle.missionId === 'mission1' && isNearQuayGarage(px, py)) {
         if (Math.abs(world.player.inVehicle.speed) < 30) {
           completeMission(1);
           objective = 'Mission complete! Return to safehouse.';
         }
+      } else if (world.player.inVehicle && !world.player.inVehicle.missionId) {
+        objective = 'Get back in the Hauler to deliver!';
       }
     }
   }
@@ -344,20 +347,17 @@ export function createMissionSystem(world, crime, save) {
   }
 
   function resetMissionState() {
-    if (activeMission >= 0) {
-      // Reset to beginning of current mission
-      const idx = activeMission;
-      activeMission = -1;
-      stage = 'IDLE';
-      missionCar = null;
-      guardSpawned = false;
-      guardDefeated = false;
-      casePickedUp = false;
-      rewardGiven = false;
-      objective = completedMissions < 3
-        ? 'Go to the safehouse to start your next job'
-        : 'All missions complete. Keep exploring!';
-    }
+    world.removeMissionCars();
+    activeMission = -1;
+    stage = 'IDLE';
+    missionCar = null;
+    guardSpawned = false;
+    guardDefeated = false;
+    casePickedUp = false;
+    rewardGiven = false;
+    objective = completedMissions < 3
+      ? 'Go to the safehouse to start your next job'
+      : 'All missions complete. Keep exploring!';
   }
 
   // Initialize

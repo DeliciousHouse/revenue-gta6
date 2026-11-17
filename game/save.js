@@ -83,7 +83,10 @@ export function createSaveSystem() {
   function hasSave() {
     if (!storageAvailable) return false;
     try {
-      return window.localStorage.getItem(SAVE_KEY) !== null;
+      const raw = window.localStorage.getItem(SAVE_KEY);
+      if (raw === null) return false;
+      const parsed = JSON.parse(raw);
+      return validate(parsed) !== null;
     } catch {
       return false;
     }

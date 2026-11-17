@@ -303,7 +303,7 @@ export function createWorld() {
   function updateTraffic(dt, camX, camY) {
     for (let i = traffic.length - 1; i >= 0; i--) {
       const t = traffic[i];
-      if (t.driver === 'player') continue;
+      if (t.driver === 'player' || !t.driver) continue;
 
       // Move toward route end
       const target = t.route.end;
@@ -539,7 +539,20 @@ export function createWorld() {
     return { camX, camY };
   }
 
-  function reset(keepProgress) {
+  function removeMissionCars() {
+    for (let i = vehicles.length - 1; i >= 0; i--) {
+      if (vehicles[i].missionId) vehicles.splice(i, 1);
+    }
+  }
+
+  function reset() {
+    // Clear driver='player' from any vehicle the player was in
+    for (const v of vehicles) {
+      if (v.driver === 'player') { v.driver = null; v.parked = true; v.speed = 0; }
+    }
+    for (const t of traffic) {
+      if (t.driver === 'player') { t.driver = null; t.parked = true; t.speed = 0; }
+    }
     player.x = SPAWN_POINTS.playerStart.x;
     player.y = SPAWN_POINTS.playerStart.y;
     player.hp = PLAYER_MAX_HP;
@@ -549,7 +562,6 @@ export function createWorld() {
     exitBlocked = false;
     projectiles.length = 0;
     effects.length = 0;
-    // Don't remove parked/mission vehicles, just reset traffic
     traffic.length = 0;
     pedestrians.length = 0;
   }
@@ -562,7 +574,7 @@ export function createWorld() {
     adj,
     nearestVehicle, enterVehicle, exitVehicle,
     tryMove, rectsOverlap, dist, damagePlayer, damageVehicle,
-    update, reset, spawnMissionCar,
+    update, reset, spawnMissionCar, removeMissionCars,
     PLAYER_MAX_HP, VEHICLE_MAX_HP,
   };
 }
